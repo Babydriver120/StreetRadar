@@ -1,1 +1,51 @@
+name: iOS-App bauen (IPA für Sideloadly)
 
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Xcode-Version anzeigen
+        run: xcodebuild -version
+
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+
+      - name: Xcode-Projekt erzeugen
+        run: xcodegen generate
+
+      - name: App bauen (ohne Signatur – Sideloadly signiert später)
+        run: |
+          xcodebuild \
+            -project StreetRadar.xcodeproj \
+            -scheme StreetRadar \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: IPA-Datei packen
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/StreetRadar.app Payload/
+          zip -qry StreetRadar.ipa Payload
+          ls -lh StreetRadar.ipa
+
+      - name: IPA zum Download bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: StreetRadar-ipa
+          path: StreetRadar.ipa
+          retention-days: 14
